@@ -25,6 +25,11 @@
 :- (dynamic visit_board/1).
 :- (dynamic selected_type/1).
 :- (dynamic to_move/1).
+:- (dynamic valid_positions/1).
+:-(dynamic fichas/1).
+:-(dynamic temp_push/3).
+:-(dynamic possible_pos/1).
+
 
 
 tablero(1, 0, 0, spider, red).
@@ -83,29 +88,11 @@ num_ficha(1).
 axial_to_cube(Q, R, S) :-
     S is -Q-R.
 
-
-create_ficha(Q, R, Type, Color) :-
-    num_ficha(ID),
-    assertz(tablero(ID, Q, R, Type, Color)),
-    NewID is ID+1,
-    retract(num_ficha(ID)),
-    assertz(num_ficha(NewID)).
-
 delete_ficha(ID) :-
     retract(tablero(ID, _, _, _, _)).
 
-move_ficha(ID, AdyID, POS) :-
-    tablero(AdyID, Q, R, _, _),
-    tablero(ID, _, _, T, C),
-    get_posicion_ady(POS, Dq, Dr),
-    Nq is Q+Dq,
-    Nr is R+Dr,
-    not(tablero(_, Nq, Nr, _, _)),
-    delete_ficha(ID),
-    assertz(tablero(ID, Nq, Nr, T, C)).
+
     
-
-
 %up
 get_posicion_ady(1, 0, -1).
 %up right
@@ -124,17 +111,6 @@ get_posicion_ady(6, -1, 0).
 
 
 
-%crea un ficha adyacente a la ficha cuyo ID se pasa y esta nueva es adyacente por la cara
-%POS que es un numero de 1 a 6 donde este indica cual de las 6 caras del exagono es 
-%comenzando a contar por 1 desde la cara de arriba de la izquierda
-push_ficha(AdyID, POS, Type, Color) :-
-    tablero(AdyID, Q, R, _, C),
-    C==Color,
-    get_posicion_ady(POS, Dq, Dr),
-    Nq is Q+Dq,
-    Nr is R+Dr,
-    not(tablero(_, Nq, Nr, _, _)),
-    create_ficha(Nq, Nr, Type, Color).
 
 for(N, N, _, _) :- !.
 for(I, N, Ejecuta, Args) :-
@@ -146,87 +122,16 @@ for(I, N, Ejecuta, Args) :-
     IN is I+1,
     for(IN, N, Ejecuta, Args).
     
-/*
-ttt(I,N):-
-    numlist(I, N, P),
-    member(X,P),
-    algo(X)
-*/
-testfor :-
-    for(1, 4, metfor, []).
-
-metfor(I, _) :-
-    print(I).    
 
 
 
-create_first_ficha(Type, Color) :-
-    create_ficha(0, 0, Type, Color).
+
 
 concat([], X, X).
 concat([X|R], Y, [X|Z]) :-
     concat(R, Y, Z).
 
 
-
-bf(ID, MaxDist) :-
-    retractall(deep_k(_, _)),
-    retractall(visit(_)),
-    print("ok"),
-    K is 0,
-    assertz(deep_k(K, [ID])),
-    assertz(visit([ID])),
-    K1 is K+1,
-    M is MaxDist+1,
-    for3(K1, M), !.
-
-
-for3(N, N) :- !.    
-for3(K, N) :-
-    assertz(deep_k(K, [])),
-    Kk is K-1,
-    deep_k(Kk, V),
-    %print(V),
-    for2(V, K),
-    K1 is K+1,
-    for3(K1, N).
-
-for3(K, N) :-
-    K1 is K+1,
-    for3(K1, N).
-
-for2([], _) :- !.
-for2([X|R], K) :-
-    for1(X, 1, 7, K),
-    for2(R, K).
-for2([_|R], K) :-
-    for2(R, K).
-    
-
-for1(_, N, N, _) :-
-    print(llego), !.
-for1(X, I, N, K) :-
-    get_posicion_ady(I, Dq, Dr),
-    tablero(X, Q, R, _, _),
-    Adyq is Q+Dq,
-    Adyr is R+Dr,
-    tablero(ID, Adyq, Adyr, _, _),
-    visit(Visit),
-    print(Visit),
-    not(member(ID, Visit)),
-    concat(Visit, [ID], V),
-    retract(visit(Visit)),
-    assertz(visit(V)),
-    deep_k(K, L),
-    concat(L, [ID], L1),
-    retract(deep_k(K, L)),
-    assertz(deep_k(K, L1)),
-    I1 is I+1,
-    for1(X, I1, N, K).
-
-for1(X, I, N, K) :-
-    I1 is I+1,
-    for1(X, I1, N, K).
 
 visit_board([]).
 
@@ -280,7 +185,131 @@ bellmandFord(ID, MaxDist) :-
 isContain(X, [X|_]) :- !.
 isContain(X, [_|R]) :-
     isContain(X, R).
+
+
+%///////////////////////////////////Push///////////////////////////////////////////////////
     
+cant_fichasxtype(grasshopper, 3, black).%saltamontes
+cant_fichasxtype(soldier_ant, 3, black).%hormigas
+cant_fichasxtype(beetle, 2, black).%escarabajos
+cant_fichasxtype(spider, 2, black).%arañas
+cant_fichasxtype(queen_bee, 1, black).%abeja reina
+cant_fichasxtype(mosquito, 1, black).%mosquito
+cant_fichasxtype(ladybug, 1, black).%mariquita
+cant_fichasxtype(pillbug, 1, black).%bicho bola
+cant_fichasxtype(grasshopper, 3, red).%saltamontes
+cant_fichasxtype(soldier_ant, 3, red).%hormigas
+cant_fichasxtype(beetle, 2, red).%escarabajos
+cant_fichasxtype(spider, 2, red).%arañas
+cant_fichasxtype(queen_bee, 1, red).%abeja reina
+cant_fichasxtype(mosquito, 1, red).%mosquito
+cant_fichasxtype(ladybug, 1, red).%mariquita
+cant_fichasxtype(pillbug, 1, red).%bicho bola
+
+
+valid_positions([]).
+
+push_ficha(Type, Color, Q, R):-
+    valid_positions(VP),
+    isContain((Q,R), VP),
+    num_ficha(ID),
+    NewID is ID+1,
+    assertz(tablero(NewID, Q, R, Type, Color)),
+    update_Generic1(ID, NewID, num_ficha),
+    update_Generic1(VP,[],valid_positions).
+
+decrement_ficha(Type,Color):-
+    cant_fichasxtype(Type,X,Color),
+    Y is X-1,
+    retract(cant_fichasxtype(Type,_,Color)),
+    assertz(cant_fichasxtype(Type,Y,Color)).
+
+
+%///////////////////////////////////////Select_Push///////////////////////////////////////////////////////
+
+select_ficha(Type,Color,1):-
+    push_ficha(Type, Color, 0, 0),!.
+
+
+select_ficha(_,_,2):-
+    valid_positions(P),
+    update_Generic1(P,[],valid_positions),
+    findall(_, select_ficha_temp1(), _),!.
+
+select_ficha(_,Color,_):-
+    valid_positions(P),
+    update_Generic1(P,[],valid_positions),
+    possible_pos(V),
+    update_Generic1(V,[],possible_pos),
+    findall(_, select_ficha_temp2(_,Color),_).
+    
+
+select_ficha_temp1():-
+    numlist(1,6,Ady),
+    member(Pos,Ady),
+    get_posicion_ady(Pos,Dq,Dr),
+    valid_positions(ValidList),
+    concat(ValidList,[(Dq,Dr)],V),
+    update_Generic1(ValidList,V,valid_positions).
+
+
+
+select_ficha_temp2(_,Color):-
+    fichas(F),
+    update_Generic1(F,[],fichas),
+    get_all_position(),
+    fichas(Fichas),
+    findall(_,select_ficha_temp3(Fichas),_),
+    possible_pos(Pp),
+    member(Possible,Pp),
+    (Q,R) = Possible,
+    color_inverse(Color,C),
+    not(temp_push(Q,R,C)),
+    valid_positions(V),
+    not(isContain((Q,R),V)),
+    concat(V,[(Q,R)],NV),
+    update_Generic1(V,NV,valid_positions).
+    
+
+
+possible_pos([]).
+
+select_ficha_temp3(Fichas):-
+    member(F,Fichas),
+    (_,Q,R,_,C) = F,
+    numlist(1,6,Ady),
+    member(Pos,Ady),
+    get_posicion_ady(Pos,Dq,Dr),
+    Nq is Q + Dq,
+    Nr is R + Dr,
+    not(tablero(_,Nq,Nr,_,_)),
+    possible_pos(VP),
+    concat(VP,[(Nq,Nr)],NVp),
+    update_Generic1(VP,NVp,possible_pos),
+    assertz(temp_push(Nq,Nr,C)).
+
+    
+color_inverse(black,red).
+color_inverse(red,black).
+    
+
+fichas([]).
+position():-
+    
+    tablero(ID,Q,R,T,C),
+    fichas(F),
+    concat(F,[(ID,Q,R,T,C)],Nf),
+    update_Generic1(F,Nf,fichas).
+
+
+get_all_position():-
+    fichas(F),
+    update_Generic1(F,[],fichas), 
+    findall(_,position,_).   
+   
+%/////////////////////////////////Select_Mov//////////////////////////////////////////////////////////
+
+
 
 
 
