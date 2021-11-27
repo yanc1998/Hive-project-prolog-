@@ -382,6 +382,7 @@ select_type(X, Px, Py, Window) :-
     X<370,
     logic:selected_type(T),
     logic:update_Generic1(T, ladybug, selected_type),
+
     clean_board(Window),
     draw_board(Window, 40, Px, Py).
 
