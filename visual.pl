@@ -84,8 +84,9 @@ new_hexag(W, [X, Y], Lenght, Color) :-
 
 cord_to_pixel(Q, R, Size, [X, Y]) :-
     logic:midel_pixel([Px, Py]),
-    X is Size*(sqrt(3)*Q+R*sqrt(3)/2)+Px,
-    Y is Size*(R*3/2)+Py.
+    %logic:dimention_board(X1,Y1),
+    X is Px + Size*sqrt(3)*(Q +(0.5)*(R mod 2)),
+    Y is Py + Size*3/2*R.
 
 
 pixel_to_cord(X1, Y1, Size, [Q1, R1]) :-
@@ -210,11 +211,12 @@ draw_board(Window, Size, Px, Py) :-
     logic:visit_board(V),
     logic:update_Generic1(V, [], visit_board),
     logic:midel_pixel([Pxm, Pym]),
+    logic:cord_midel([Mx, My]),
     findall(_,
             draw_hive(Pxm,
                       Pym,
-                      0,
-                      0,
+                      Mx,
+                      My,
                       1,
                       spider,
                       red,
@@ -226,7 +228,7 @@ draw_board(Window, Size, Px, Py) :-
 draw_select_bug(ID, Window, Size, Xm, Ym) :-
     logic:to_move(ID),
     new_hexag(Window, [Xm, Ym], Size, blue).
-draw_select_bug(_, _, _, _,_). 
+draw_select_bug(_, _, _, _, _). 
 
 draw_are_players(Window, Size, Px, _, 1) :-
     
@@ -341,16 +343,31 @@ move_or_push_temp(_, _, Window, Q, R) :-
     clean_board(Window),
     draw_board(Window, 40, Px, Py).
 
-move_or_push_temp(_, _, Window, Q, R):-
+move_or_push_temp(_, _, Window, Q, R) :-
     logic:dimention_board(Px, Py),
     logic:to_move(IDMov),
     IDMov\=0,
-    logic:tablero(IDMov,_,_,Type,Color),
+    logic:tablero(IDMov, _, _, Type, Color),
     logic:delete_ficha(IDMov),
-    logic:add_ficha(IDMov,Q,R,Type,Color),
+    logic:add_ficha(IDMov, Q, R, Type, Color),
+    IDMov\=1,
+    logic:update_Generic1(IDMov,0,to_move),
+    
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py),!.
+move_or_push_temp(_, _, Window, Q, R) :-
+    logic:dimention_board(Px, Py),
+    logic:to_move(IDMov),
+    IDMov==1,
+    %logic:midel_pixel(M),
+    logic:cord_midel(Mc),
+    %cord_to_pixel(Q, R, 40, [X, Y]),
+    %logic:update_Generic1(M, [X, Y], midel_pixel),
+    logic:update_Generic1(Mc, [Q, R], cord_midel),
+    logic:update_Generic1(IDMov,0,to_move),
     clean_board(Window),
     draw_board(Window, 40, Px, Py).
-    
+
 
 
 select_type(X, Px, Py, Window) :-

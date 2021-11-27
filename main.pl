@@ -13,7 +13,8 @@
             selected_type/1,
             dimention_board/2,
             to_move/1,
-            delete_ficha/1
+            delete_ficha/1,
+            cord_midel/1
           ]).
 
 
@@ -25,7 +26,7 @@
 :- (dynamic visit_board/1).
 :- (dynamic selected_type/1).
 :- (dynamic to_move/1).
-
+:-(dynamic cord_midel/1).
 
 tablero(1, 0, 0, spider, red).
 
@@ -76,6 +77,7 @@ add_ficha(ID, Q, R, Type, Color) :-
 
 %posicion del centro del tablero
 midel_pixel([683, 350]).
+cord_midel([0,0]).
 %numero de fichas en el tablero,sirve de identificador para las fichas
 num_ficha(1).
 
@@ -84,26 +86,9 @@ axial_to_cube(Q, R, S) :-
     S is -Q-R.
 
 
-create_ficha(Q, R, Type, Color) :-
-    num_ficha(ID),
-    assertz(tablero(ID, Q, R, Type, Color)),
-    NewID is ID+1,
-    retract(num_ficha(ID)),
-    assertz(num_ficha(NewID)).
-
 delete_ficha(ID) :-
     retract(tablero(ID, _, _, _, _)).
 
-move_ficha(ID, AdyID, POS) :-
-    tablero(AdyID, Q, R, _, _),
-    tablero(ID, _, _, T, C),
-    get_posicion_ady(POS, Dq, Dr),
-    Nq is Q+Dq,
-    Nr is R+Dr,
-    not(tablero(_, Nq, Nr, _, _)),
-    delete_ficha(ID),
-    assertz(tablero(ID, Nq, Nr, T, C)).
-    
 
 
 %up
@@ -124,18 +109,6 @@ get_posicion_ady(6, -1, 0).
 
 
 
-%crea un ficha adyacente a la ficha cuyo ID se pasa y esta nueva es adyacente por la cara
-%POS que es un numero de 1 a 6 donde este indica cual de las 6 caras del exagono es 
-%comenzando a contar por 1 desde la cara de arriba de la izquierda
-push_ficha(AdyID, POS, Type, Color) :-
-    tablero(AdyID, Q, R, _, C),
-    C==Color,
-    get_posicion_ady(POS, Dq, Dr),
-    Nq is Q+Dq,
-    Nr is R+Dr,
-    not(tablero(_, Nq, Nr, _, _)),
-    create_ficha(Nq, Nr, Type, Color).
-
 for(N, N, _, _) :- !.
 for(I, N, Ejecuta, Args) :-
     T=..[Ejecuta, I, Args],
@@ -146,87 +119,11 @@ for(I, N, Ejecuta, Args) :-
     IN is I+1,
     for(IN, N, Ejecuta, Args).
     
-/*
-ttt(I,N):-
-    numlist(I, N, P),
-    member(X,P),
-    algo(X)
-*/
-testfor :-
-    for(1, 4, metfor, []).
-
-metfor(I, _) :-
-    print(I).    
-
-
-
-create_first_ficha(Type, Color) :-
-    create_ficha(0, 0, Type, Color).
 
 concat([], X, X).
 concat([X|R], Y, [X|Z]) :-
     concat(R, Y, Z).
 
-
-
-bf(ID, MaxDist) :-
-    retractall(deep_k(_, _)),
-    retractall(visit(_)),
-    print("ok"),
-    K is 0,
-    assertz(deep_k(K, [ID])),
-    assertz(visit([ID])),
-    K1 is K+1,
-    M is MaxDist+1,
-    for3(K1, M), !.
-
-
-for3(N, N) :- !.    
-for3(K, N) :-
-    assertz(deep_k(K, [])),
-    Kk is K-1,
-    deep_k(Kk, V),
-    %print(V),
-    for2(V, K),
-    K1 is K+1,
-    for3(K1, N).
-
-for3(K, N) :-
-    K1 is K+1,
-    for3(K1, N).
-
-for2([], _) :- !.
-for2([X|R], K) :-
-    for1(X, 1, 7, K),
-    for2(R, K).
-for2([_|R], K) :-
-    for2(R, K).
-    
-
-for1(_, N, N, _) :-
-    print(llego), !.
-for1(X, I, N, K) :-
-    get_posicion_ady(I, Dq, Dr),
-    tablero(X, Q, R, _, _),
-    Adyq is Q+Dq,
-    Adyr is R+Dr,
-    tablero(ID, Adyq, Adyr, _, _),
-    visit(Visit),
-    print(Visit),
-    not(member(ID, Visit)),
-    concat(Visit, [ID], V),
-    retract(visit(Visit)),
-    assertz(visit(V)),
-    deep_k(K, L),
-    concat(L, [ID], L1),
-    retract(deep_k(K, L)),
-    assertz(deep_k(K, L1)),
-    I1 is I+1,
-    for1(X, I1, N, K).
-
-for1(X, I, N, K) :-
-    I1 is I+1,
-    for1(X, I1, N, K).
 
 visit_board([]).
 
