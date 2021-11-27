@@ -13,7 +13,8 @@
             selected_type/1,
             dimention_board/2,
             to_move/1,
-            delete_ficha/1
+            delete_ficha/1,
+            cord_midel/1
           ]).
 
 
@@ -81,6 +82,7 @@ add_ficha(ID, Q, R, Type, Color) :-
 
 %posicion del centro del tablero
 midel_pixel([683, 350]).
+cord_midel([0,0]).
 %numero de fichas en el tablero,sirve de identificador para las fichas
 num_ficha(1).
 
@@ -90,6 +92,7 @@ axial_to_cube(Q, R, S) :-
 
 delete_ficha(ID) :-
     retract(tablero(ID, _, _, _, _)).
+
 
 
     
@@ -105,10 +108,6 @@ get_posicion_ady(4, 0, 1).
 get_posicion_ady(5, -1, 1).
 %up left
 get_posicion_ady(6, -1, 0).
-
-
-
-
 
 
 
