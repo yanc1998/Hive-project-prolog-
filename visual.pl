@@ -85,8 +85,9 @@ new_hexag(W, [X, Y], Lenght, Color) :-
 cord_to_pixel(Q, R, Size, [X, Y]) :-
     logic:midel_pixel([Px, Py]),
     %logic:dimention_board(X1,Y1),
-    X is Px + Size*sqrt(3)*(Q +(0.5)*(R mod 2)),
-    Y is Py + Size*3/2*R.
+    X is Px + Size*(Q*3/2),
+    Y is Py + Size*(Q*sqrt(3)/2 + R*sqrt(3)).
+
 
 
 pixel_to_cord(X1, Y1, Size, [Q1, R1]) :-
@@ -164,39 +165,22 @@ draw_image(Window, Figura, Type, X, Y) :-
     new_image(Window, Figura, Type, point(X, Y)).
 
 
-draw_hive(X, Y, Q, R, ID, Type, Color, Window, Size) :-
-    logic:visit_board(V),
-    not(logic:isContain(ID, V)),
-    logic:concat(V, [ID], NV),
-    logic:update_Generic1(V, NV, visit_board),
+
+draw_hive(Window,Size):-
+    logic:get_all_positions,
+    logic:fichas(Position),
+    member(P,Position),
+    (ID, Q, R, T, C) = P,
+    cord_to_pixel(Q,R,Size,[X,Y]),
     new_hexag(Window, [X, Y], Size, black),
-    new_hexag(Window, [X, Y], Size-4, Color),
+    new_hexag(Window, [X, Y], Size-4, C),
     draw_select_bug(ID, Window, Size-6, X, Y),
     Ix is X-22,
     Iy is Y-22,
-    draw_image(Window, _, Type, Ix, Iy),
-    numlist(1, 6, Ady),
-    member(Pos, Ady),
-    logic:get_posicion_ady(Pos, Dq, Dr),
-    Nq is Q+Dq,
-    Nr is R+Dr,
-    logic:tablero(N, Nq, Nr, T, C),
-    print(N),
-    get_midel_pixel(X,
-                    Y,
-                    Size,
-                    Pos,
-                    Nx,
-                    Ny),
-    draw_hive(Nx,
-              Ny,
-              Nq,
-              Nr,
-              N,
-              T,
-              C,
-              Window,
-              Size).
+    draw_image(Window, _, T, Ix, Iy).
+
+
+
 
 
     
@@ -210,19 +194,8 @@ draw_board(Window, Size, Px, Py) :-
             _),
     logic:visit_board(V),
     logic:update_Generic1(V, [], visit_board),
-    logic:midel_pixel([Pxm, Pym]),
-    logic:cord_midel([Mx, My]),
-    findall(_,
-            draw_hive(Pxm,
-                      Pym,
-                      Mx,
-                      My,
-                      1,
-                      spider,
-                      red,
-                      Window,
-                      Size),
-            _).
+   
+    findall(_,draw_hive(Window,Size),_).
 
 
 draw_select_bug(ID, Window, Size, Xm, Ym) :-
@@ -268,7 +241,7 @@ draw_move_hive(Window, Px, Py) :-
     new(@buttondown, button("dawn", message(@prolog, move_pos, Window, 2))),
     new(@buttonleft, button("left", message(@prolog, move_pos, Window, 3))),
     new(@buttonright, button("right", message(@prolog, move_pos, Window, 4))),
-    %point(40,Py-40),
+   
     send(Window, display, @buttonup, point(Px-100, Py-60)),
     send(Window, display, @buttondown, point(Px-100, Py-40)),
     send(Window, display, @buttonleft, point(Px-150, Py-50)),
@@ -314,11 +287,7 @@ move_or_push(Window, Position) :-
     %hacer seleccionar el tipo de bicho que quiere jugar
     pixel_to_cord(ClickX, ClickY, 40, [Q1, R1]),
     move_or_push_temp(ClickX, ClickY, Window, Q1, R1).
-    %vambiar por poner ficha
-    %logic:add_ficha(9, Q1, R1, spider, red),
-    %new_hexag(Window, [ClickX, ClickY], 40, black),
-    %clean_board(Window),
-    %draw_board(Window, 40, 1366, 700).
+    
 move_or_push_temp(X, Y, Window, _, _) :-
     logic:dimention_board(Px, Py),
     Y>Py-80,
@@ -350,23 +319,11 @@ move_or_push_temp(_, _, Window, Q, R) :-
     logic:tablero(IDMov, _, _, Type, Color),
     logic:delete_ficha(IDMov),
     logic:add_ficha(IDMov, Q, R, Type, Color),
-    IDMov\=1,
     logic:update_Generic1(IDMov,0,to_move),
     
     clean_board(Window),
     draw_board(Window, 40, Px, Py),!.
-move_or_push_temp(_, _, Window, Q, R) :-
-    logic:dimention_board(Px, Py),
-    logic:to_move(IDMov),
-    IDMov==1,
-    %logic:midel_pixel(M),
-    logic:cord_midel(Mc),
-    %cord_to_pixel(Q, R, 40, [X, Y]),
-    %logic:update_Generic1(M, [X, Y], midel_pixel),
-    logic:update_Generic1(Mc, [Q, R], cord_midel),
-    logic:update_Generic1(IDMov,0,to_move),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+
 
 
 
@@ -447,7 +404,7 @@ start_game :-
                        single,
                        message(@prolog, move_or_push, Window, @event?position))),
     Size is 40,
-    %draw_move_hive(Window, Px, Py),
+    
     draw_board(Window, Size, Px, Py),
     send(Window, open).
 
