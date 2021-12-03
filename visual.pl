@@ -9,6 +9,12 @@ resource(pillbug, image, image('pillbug.jpg')).
 resource(queen_bee, image, image('queen_bee.jpg')).
 resource(soldier_ant, image, image('soldier_ant.jpg')).
 resource(circlered, image, image('circlered.jpg')).
+
+resource(cero, image, image('0.jpg')).
+resource(one, image, image('1.jpg')).
+resource(two, image, image('2.jpg')).
+resource(thre, image, image('3.jpg')).
+
 :- consult(main),
    import(logic).
 
@@ -103,7 +109,6 @@ pixel_to_cord(X1, Y1, Size, [Q1, R1]) :-
     QD is abs(Qt-Q),
     RD is abs(Rt-R),
     SD is abs(St-S),
-    print("ok"),
     temp_pixel(Qt,
                Rt,
                St,
@@ -167,7 +172,8 @@ draw_image(Window, Figura, Type, X, Y) :-
 
 
 draw_hive(Window,Size):-
-    logic:get_all_positions,
+    
+    logic:get_all_positions(),
     logic:fichas(Position),
     member(P,Position),
     (ID, Q, R, T, C) = P,
@@ -177,7 +183,12 @@ draw_hive(Window,Size):-
     draw_select_bug(ID, Window, Size-6, X, Y),
     Ix is X-22,
     Iy is Y-22,
-    draw_image(Window, _, T, Ix, Iy).
+    draw_image(Window, _, T, Ix, Iy),
+    logic:valid_positions(Valid),
+    member(Vp,Valid),
+    (Q1,R1) = Vp,
+    cord_to_pixel(Q1,R1,Size,[X1,Y1]),
+    new_hexag(Window, [X1, Y1], Size, yellow).
 
 
 
@@ -231,10 +242,28 @@ draw_are_players(Window, Size, Px, Py, 2) :-
     Ix is X-22,
     Iy is Y-22,
     draw_image(Window, _, T, Ix, Iy),
+    logic:cant_fichasxtype(T,Number,black),
+    draw_number_fichas(Number,[X+43,Y+10],Window),
     logic:selected_type(T),
     T\=nan,
     logic:pos_picture_player(T, P),
     new_hexag(Window, [P, Py-40], Size, blue).   
+
+
+draw_number_fichas(1,[X,Y],Window):-
+    draw_image(Window,_,one,X,Y).
+
+
+draw_number_fichas(2,[X,Y],Window):-
+    draw_image(Window,_,two,X,Y).
+
+
+draw_number_fichas(3,[X,Y],Window):-
+    draw_image(Window,_,thre,X,Y).
+
+
+draw_number_fichas(0,[X,Y],Window):-
+    draw_image(Window,_,cero,X,Y).
 
 draw_move_hive(Window, Px, Py) :-
     new(@buttonup, button("up", message(@prolog, move_pos, Window, 1))),
@@ -291,7 +320,12 @@ move_or_push(Window, Position) :-
 move_or_push_temp(X, Y, Window, _, _) :-
     logic:dimention_board(Px, Py),
     Y>Py-80,
-    select_type(X, Px, Py, Window). 
+    select_type(X),
+    logic:selected_type(T),
+    logic:num_ficha(N),
+    logic:select_ficha(T,black,N),
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py). 
 
 move_or_push_temp(_, Y, Window, Q, R) :-
     Y>80,
@@ -299,27 +333,51 @@ move_or_push_temp(_, Y, Window, Q, R) :-
     logic:selected_type(T),
     T\=nan,
     %cambiar por poner ficha
-    logic:add_ficha(9, Q, R, T, black),
+    logic:push_ficha(T,black,Q,R),
+    logic:decrement_ficha(T,black),
+    %logic:add_ficha(9, Q, R, T, black),
     logic:update_Generic1(T, nan, selected_type),
     clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    draw_board(Window, 40, Px, Py),!.
 
 move_or_push_temp(_, _, Window, Q, R) :-
+    %desmarcar la ficha que se hiba a colocar
+    logic:selected_type(T),
+    logic:update_Generic1(T, nan, selected_type),
     logic:dimention_board(Px, Py),
-    logic:tablero(ID, Q, R, _, _),
     logic:to_move(IDMov),
-    logic:update_Generic1(IDMov, ID, to_move),
+    tablero(IDMov,_,_,TypeMove,Color),
+    TypeMove==beetle,
+    
+    %poner llamar a calcular las posiciones validas del movimiento
+    logic:mov_ficha(TypeMove,Color,Q,R),
     clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    draw_board(Window, 40, Px, Py),!.
+
+
+
+move_or_push_temp(_, _, Window, Q, R) :-
+    logic:to_move(IDMov),
+    logic:tablero(ID, Q, R, Type, _),
+    logic:update_Generic1(IDMov, ID, to_move),
+    logic:mov_valid_ficha(Type,_,Q,R),
+    logic:dimention_board(Px, Py),
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py),!.
+
+
+
 
 move_or_push_temp(_, _, Window, Q, R) :-
     logic:dimention_board(Px, Py),
     logic:to_move(IDMov),
     IDMov\=0,
     logic:tablero(IDMov, _, _, Type, Color),
-    logic:delete_ficha(IDMov),
-    logic:add_ficha(IDMov, Q, R, Type, Color),
-    logic:update_Generic1(IDMov,0,to_move),
+    %llamar a mover ficha
+    %logic:delete_ficha(IDMov),
+    %logic:add_ficha(IDMov, Q, R, Type, Color),
+    logic:mov_ficha(Type,Color,Q,R),
+ 
     
     clean_board(Window),
     draw_board(Window, 40, Px, Py),!.
@@ -327,71 +385,61 @@ move_or_push_temp(_, _, Window, Q, R) :-
 
 
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>10,
     X<70,
     logic:selected_type(T),
-    logic:update_Generic1(T, spider, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, spider, selected_type).
+    
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>110,
     X<170,
     logic:selected_type(T),
-    logic:update_Generic1(T, beetle, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, beetle, selected_type).
+    
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>210,
     X<270,
     logic:selected_type(T),
-    logic:update_Generic1(T, grasshopper, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, grasshopper, selected_type).
+   
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>310,
     X<370,
     logic:selected_type(T),
-    logic:update_Generic1(T, ladybug, selected_type),
-
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, ladybug, selected_type).
 
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>410,
     X<470,
     logic:selected_type(T),
-    logic:update_Generic1(T, mosquito, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, mosquito, selected_type).
+    
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>510,
     X<570,
     logic:selected_type(T),
-    logic:update_Generic1(T, pillbug, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, pillbug, selected_type).
+   
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>610,
     X<670,
     logic:selected_type(T),
-    logic:update_Generic1(T, queen_bee, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, queen_bee, selected_type).
+    
 
-select_type(X, Px, Py, Window) :-
+select_type(X) :-
     X>710,
     X<770,
     logic:selected_type(T),
-    logic:update_Generic1(T, soldier_ant, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py).
+    logic:update_Generic1(T, soldier_ant, selected_type).
+    
 
 
 
