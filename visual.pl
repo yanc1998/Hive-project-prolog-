@@ -214,7 +214,7 @@ draw_select_bug(ID, Window, Size, Xm, Ym) :-
     new_hexag(Window, [Xm, Ym], Size, blue).
 draw_select_bug(_, _, _, _, _). 
 
-draw_are_players(Window, Size, Px, _, 1) :-
+draw_are_players(Window, Size, Px,_, 1) :-
     
     %player 1
     draw_line(Window, [0, 80], [Px, 80], black),
@@ -226,7 +226,14 @@ draw_are_players(Window, Size, Px, _, 1) :-
     new_hexag(Window, [X, Y], Size-4, red),
     Ix is X-22,
     Iy is Y-22,
-    draw_image(Window, _, T, Ix, Iy).    
+    draw_image(Window, _, T, Ix, Iy),
+    logic:cant_fichasxtype(T,Number,red),
+    draw_number_fichas(Number,[X+43,Y+10],Window),
+    logic:selected_type(T),
+    logic:turn(red),
+    T\=nan,
+    logic:pos_picture_player(T, P),
+    new_hexag(Window, [P,40], Size, blue).    
     
 
 draw_are_players(Window, Size, Px, Py, 2) :-
@@ -245,6 +252,7 @@ draw_are_players(Window, Size, Px, Py, 2) :-
     logic:cant_fichasxtype(T,Number,black),
     draw_number_fichas(Number,[X+43,Y+10],Window),
     logic:selected_type(T),
+    logic:turn(black),
     T\=nan,
     logic:pos_picture_player(T, P),
     new_hexag(Window, [P, Py-40], Size, blue).   
@@ -319,13 +327,32 @@ move_or_push(Window, Position) :-
     
 move_or_push_temp(X, Y, Window, _, _) :-
     logic:dimention_board(Px, Py),
-    Y>Py-80,
+    Y>Py-80,!,
+    logic:turn(black),
     select_type(X),
+    logic:to_move(ID),
+    logic:update_Generic1(ID,0,to_move),
     logic:selected_type(T),
     logic:num_ficha(N),
     logic:select_ficha(T,black,N),
     clean_board(Window),
     draw_board(Window, 40, Px, Py). 
+
+move_or_push_temp(X,Y,Window,_,_):-
+   
+    Y < 80,!,
+    logic:turn(red),
+    select_type(X),
+    logic:to_move(ID),
+    logic:update_Generic1(ID,0,to_move),
+    logic:selected_type(T),
+    logic:num_ficha(N),
+    logic:select_ficha(T,red,N),
+    logic:dimention_board(Px, Py),
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py). 
+
+
 
 move_or_push_temp(_, Y, Window, Q, R) :-
     Y>80,
@@ -333,8 +360,9 @@ move_or_push_temp(_, Y, Window, Q, R) :-
     logic:selected_type(T),
     T\=nan,
     %cambiar por poner ficha
-    logic:push_ficha(T,black,Q,R),
-    logic:decrement_ficha(T,black),
+    logic:turn(C),
+    logic:push_ficha(T,C,Q,R),
+    
     %logic:add_ficha(9, Q, R, T, black),
     logic:update_Generic1(T, nan, selected_type),
     clean_board(Window),
@@ -358,9 +386,10 @@ move_or_push_temp(_, _, Window, Q, R) :-
 
 move_or_push_temp(_, _, Window, Q, R) :-
     logic:to_move(IDMov),
-    logic:tablero(ID, Q, R, Type, _),
+    logic:tablero(ID, Q, R, Type, C),
+    logic:turn(C),
     logic:update_Generic1(IDMov, ID, to_move),
-    logic:mov_valid_ficha(Type,_,Q,R),
+    logic:mov_valid_ficha(Type,C,Q,R),
     logic:dimention_board(Px, Py),
     clean_board(Window),
     draw_board(Window, 40, Px, Py),!.

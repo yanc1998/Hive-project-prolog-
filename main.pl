@@ -20,7 +20,12 @@
             select_ficha/3,
             push_ficha/4,
             decrement_ficha/2,
-            mov_valid_ficha/4
+            mov_valid_ficha/4,
+            turn/1,
+            push_bee_black/1,
+            push_bee_red/1,
+            cant_push/2,
+            player_win/1
           ]).
 
 
@@ -40,10 +45,18 @@
 :- (dynamic beetle_down/4).
 :- (dynamic mkdisc/1).
 :- (dynamic adya/1).
+:- (dynamic turn/1).
+:- (dynamic push_bee_black/1).
+:- (dynamic push_bee_red/1).
+:- (dynamic cant_push/2).
+:- (dynamic player_win/1).
 
 
-
-
+turn(black).
+push_bee_black(0).
+push_bee_red(0).
+cant_push(black,0).
+cant_push(red,0).
 
 %tablero(1, 0, 0, spider, red).
 
@@ -214,14 +227,37 @@ cant_fichasxtype(ladybug, 1, red).%mariquita
 cant_fichasxtype(pillbug, 1, red).%bicho bola
 valid_positions([]).
 
+
+push_bee(queen_bee,black) :-
+    push_bee_black(E),
+    update_Generic1(E, 1, push_bee_black).
+
+
+push_bee(queen_bee,red) :-
+    push_bee_red(E),
+    update_Generic1(E, 1, push_bee_red).  
+
+push_bee(_,_):-!.
+    
+
 push_ficha(Type, Color, Q, R) :-
+    print("entre al push"),
     valid_positions(VP),
     isContain((Q, R), VP),
     num_ficha(ID),
     assertz(tablero(ID, Q, R, Type, Color)),
+    decrement_ficha(Type,Color),
+    push_bee(Type,Color),
     NewID is ID+1,
+    turn(C),
+    cant_push(C,X),
+    NX is X + 1,
+    update_Generic2(X,NX,C,cant_push),
+    color_inverse(C, NC),
+    update_Generic1(C, NC, turn),
     update_Generic1(ID, NewID, num_ficha),
-    update_Generic1(VP, [], valid_positions).
+    update_Generic1(VP, [], valid_positions),
+    finish().
 
 decrement_ficha(Type, Color) :-
     cant_fichasxtype(Type, X, Color),
@@ -231,13 +267,21 @@ decrement_ficha(Type, Color) :-
 
 
 %///////////////////////////////////////Select_Push///////////////////////////////////////////////////////
+
 select_ficha(Type, Color, 1) :-
     Type\=queen_bee,
     num_ficha(ID),
     assertz(tablero(ID, 0, 0, Type, Color)),
+    push_bee(Type,Color),
     NewID is ID+1,
     decrement_ficha(Type, Color),
-    update_Generic1(ID, NewID, num_ficha).
+    turn(C),
+    cant_push(C,X),
+    NX is X + 1,
+    update_Generic2(X,NX,C,cant_push),
+    color_inverse(C, NC),
+    update_Generic1(C, NC, turn),
+    update_Generic1(ID, NewID, num_ficha),!.
 
 
 
@@ -252,11 +296,16 @@ select_ficha(_, _, 2) :-
 %    Type\=queen_bee, !.
 
 
-select_ficha(_,Color,_):-
+select_ficha(Type,Color,_):-
+    cant_push(Color, Cant),
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    before_4(Type,Color,Cant),
+    cant_fichasxtype(Type,X,Color),
+    X > 0,
     possible_pos(V),
     update_Generic1(V,[],possible_pos),
+    retractall(temp_push(_,_,_)),
     findall(_, select_ficha_temp2(_,Color),_).
     
 
@@ -286,6 +335,20 @@ select_ficha_temp2(_,Color):-
     concat(V,[(Q,R)],NV),
     update_Generic1(V,NV,valid_positions).
     
+
+before_4(Type,Color,3):-
+    before_Temp(Color),!,
+    Type == queen_bee.
+     
+before_4(_,_,_):-!.
+ 
+before_Temp(black):-
+    push_bee_black(X),
+    X\=1.
+ 
+before_Temp(red):-
+    push_bee_red(X),
+    X\=1.
 
 
 possible_pos([]).
@@ -324,6 +387,14 @@ get_all_positions():-
     findall(_,position,_).   
 
 
+cant_esc(C):-
+    findall(ID,
+    (
+    beetle_down(ID,_,_,_)),C).
+    
+
+
+
 disconect_hive(Q,R):-
     mkdisc(M),
     update_Generic1(M,[],mkdisc),
@@ -336,7 +407,9 @@ disconect_hive(Q,R):-
     mkdisc(Mk),
     num_ficha(N),
     length(Mk, L),
-    Nn is N-2,
+    cant_esc(C),
+    length(C,L1),
+    Nn is N-2-L1,
     Nn==L.
     
 
@@ -384,8 +457,12 @@ mov_ficha(beetle,Color,Q,R):-
     mov_ficha_beetle_temp(IDmove,Q,R,Aq,Ar,beetle,Color),
 
     print("si hizo"),
+    turn(C),
+    color_inverse(C,NC),
+    update_Generic1(C,NC,turn),
     update_Generic1(VP,[],valid_positions),
-    update_Generic1(IDmove, 0 , to_move),!.
+    update_Generic1(IDmove, 0 , to_move),
+    finish().
 
 
 mov_ficha(Type, Color, Q, R):-
@@ -394,8 +471,12 @@ mov_ficha(Type, Color, Q, R):-
     to_move(ID),
     retract(tablero(ID,_,_,_,_)),
     assertz(tablero(ID, Q, R, Type, Color)),
+    turn(C),
+    color_inverse(C,NC),
+    update_Generic1(C,NC,turn),
     update_Generic1(ID, 0 , to_move),
-    update_Generic1(VP,[],valid_positions).
+    update_Generic1(VP,[],valid_positions),
+    finish().
 
 
 
@@ -445,63 +526,87 @@ remove_only_pos(Q1,R1):-
     (Q,R) = P,
     
     get_Ady_pos(Q,R),
-    adya(Ady),
-    delete(Ady,(Q1,R1),NAdy),
+    my_delete(Q1,R1,NAdy),
     length(NAdy, L),
     L\=0,
     valid_positions(Vp),
     concat(Vp,[(Q,R)],NVp),
     update_Generic1(Vp,NVp,valid_positions).
+
+my_delete(Q1,R1,L):-
+    adya(Ady),
+    tablero(ID,Q1,R1,_,_),
+    not(beetle_down(ID,_,_,_)),
+    delete(Ady,(Q1,R1),L1),
+    L = L1,!.
+
+my_delete(_,_,L):-
+    adya(Ady),
+    L = Ady,!.
     
 
 
-mov_valid_ficha(queen_bee,_,Q,R):-
+color_bee_push(black):-
+    push_bee_black(C),
+    C==1.
+color_bee_push(red):-
+    push_bee_red(C),
+    C==1.
+
+mov_valid_ficha(queen_bee,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, mov_queen(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
 
-mov_valid_ficha(beetle,_,Q,R):-
+mov_valid_ficha(beetle,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     tablero(ID,Q,R,_,_),
     beetle_down(ID,_,_,_),
     findall(_, mov_beetle(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
 
-mov_valid_ficha(beetle,_,Q,R):-
+mov_valid_ficha(beetle,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, mov_beetle(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
 
-mov_valid_ficha(grasshopper,_,Q,R):-
+mov_valid_ficha(grasshopper,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, mov_grasshopper(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
 
 
-mov_valid_ficha(ladybug,_,Q,R):-
+mov_valid_ficha(ladybug,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, mov_ladybug(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
 
-mov_valid_ficha(soldier_ant,_,Q,R):-
+mov_valid_ficha(soldier_ant,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, mov_soldier_ant(Q,R), _),!.
     %findall(_,remove_only_pos(Q,R),_),!.
 
-mov_valid_ficha(spider,_,Q,R):-
+mov_valid_ficha(spider,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
+    color_bee_push(C),
     disconect_hive(Q,R),
     findall(_, move_spider(Q,R), _),!.
     %findall(_,remove_only_pos(Q,R),_),!.    
@@ -635,17 +740,17 @@ mov_beetle(Q,R):-
     get_posicion_ady(Pos,Dq,Dr),
     Nq is Q + Dq,
     Nr is R + Dr,
-    mov_beetle_temp(Pos,Nq,Nr,IDmove).
+    mov_beetle_temp(Pos,Nq,Nr,Q,R,IDmove).
     
 
-mov_beetle_temp(Pos,Nq,Nr,IDmove):-
+mov_beetle_temp(Pos,Nq,Nr,Q,R,IDmove):-
     not(beetle_down(IDmove,_,_,_)),
-    not(in_between(Pos,Nq,Nr)),
+    not(in_between(Pos,Q,R)),
     valid_positions(ValidList),
     concat(ValidList,[(Nq,Nr)],V),
     update_Generic1(ValidList,V,valid_positions).
 
-mov_beetle_temp(_,Nq,Nr,IDmove):-
+mov_beetle_temp(_,Nq,Nr,_,_,IDmove):-
     beetle_down(IDmove,_,_,_),
     valid_positions(ValidList),
     concat(ValidList,[(Nq,Nr)],V),
@@ -694,3 +799,26 @@ neighbour(Pos,X,Y):-
     Y is Pos + 1.   
 
 
+player_win(-1).
+finish():-
+    win(black),
+    player_win(X),
+    update_Generic1(X, 1, player_win),
+    win(red),
+    player_win(X),
+    update_Generic1(X, 0, player_win),!.
+
+finish():-
+    win(red),
+    player_win(X),
+    update_Generic1(X,2,player_win).
+
+finish():-!.
+
+
+win(Color):-
+    tablero(_,Q,R,queen_bee,Color),
+    get_Ady_pos(Q,R),
+    adya(Ady),
+    length(Ady,L),
+    L == 6.
