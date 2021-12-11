@@ -15,10 +15,20 @@ resource(one, image, image('1.jpg')).
 resource(two, image, image('2.jpg')).
 resource(thre, image, image('3.jpg')).
 
+resource(winner_one, image, image('winner-1.jpg')).
+resource(winner_thwo, image, image('winner-2.jpg')).
+resource(empate, image, image('empate.jpg')).
+
+
+resource(turno1, image, image('turno1.jpg')).
+resource(turno2, image, image('turno2.jpg')).
+
+
 :- consult(main),
    import(logic).
 
-
+:- consult(ia),
+   import(ia).
 
 new_image(Ventana, Figura, Imagen, Posicion) :-
     new(Figura, figure),
@@ -91,8 +101,8 @@ new_hexag(W, [X, Y], Lenght, Color) :-
 cord_to_pixel(Q, R, Size, [X, Y]) :-
     logic:midel_pixel([Px, Py]),
     %logic:dimention_board(X1,Y1),
-    X is Px + Size*(Q*3/2),
-    Y is Py + Size*(Q*sqrt(3)/2 + R*sqrt(3)).
+    X is Px+Size*(Q*3/2),
+    Y is Py+Size*(Q*sqrt(3)/2+R*sqrt(3)).
 
 
 
@@ -171,13 +181,12 @@ draw_image(Window, Figura, Type, X, Y) :-
 
 
 
-draw_hive(Window,Size):-
-    
+draw_hive(Window, Size) :-
     logic:get_all_positions(),
     logic:fichas(Position),
-    member(P,Position),
-    (ID, Q, R, T, C) = P,
-    cord_to_pixel(Q,R,Size,[X,Y]),
+    member(P, Position),
+    (ID, Q, R, T, C)=P,
+    cord_to_pixel(Q, R, Size, [X, Y]),
     new_hexag(Window, [X, Y], Size, black),
     new_hexag(Window, [X, Y], Size-4, C),
     draw_select_bug(ID, Window, Size-6, X, Y),
@@ -185,18 +194,42 @@ draw_hive(Window,Size):-
     Iy is Y-22,
     draw_image(Window, _, T, Ix, Iy),
     logic:valid_positions(Valid),
-    member(Vp,Valid),
-    (Q1,R1) = Vp,
-    cord_to_pixel(Q1,R1,Size,[X1,Y1]),
-    new_hexag(Window, [X1, Y1], Size, yellow).
+    member(Vp, Valid),
+    (Q1, R1)=Vp,
+    cord_to_pixel(Q1, R1, Size, [X1, Y1]),
+    new_hexag(Window, [X1, Y1], Size, green).
 
 
 
+win(1, Window) :-
+    dimention_board(Px, _),
+    draw_image(Window, _, winner_one, Px-300, 100),
+    logic:update_Generic1(0, 1, game_over), !,
+    fail.
 
+
+win(2, Window) :-
+    dimention_board(Px, _),
+    draw_image(Window, _, winner_thwo, Px-300, 100),
+    logic:update_Generic1(0, 1, game_over), !,
+    fail.
+
+win(0, Window) :-
+    dimention_board(Px, _),
+    draw_image(Window, _, empate, Px-300, 100),
+    logic:update_Generic1(0, 1, game_over), !,
+    fail.
+
+win(_, _).
+
+    
 
     
 draw_board(Window, Size, Px, Py) :-
+    logic:player_win(P),
     draw_move_hive(Window, Px, Py),
+    logic:turn(Turno),
+    draw_turn(Turno, Window),
     findall(_,
             draw_are_players(Window, Size, Px, Py, 1),
             _),
@@ -205,8 +238,8 @@ draw_board(Window, Size, Px, Py) :-
             _),
     logic:visit_board(V),
     logic:update_Generic1(V, [], visit_board),
-   
-    findall(_,draw_hive(Window,Size),_).
+    findall(_, draw_hive(Window, Size), _),
+    win(P, Window).
 
 
 draw_select_bug(ID, Window, Size, Xm, Ym) :-
@@ -214,7 +247,42 @@ draw_select_bug(ID, Window, Size, Xm, Ym) :-
     new_hexag(Window, [Xm, Ym], Size, blue).
 draw_select_bug(_, _, _, _, _). 
 
-draw_are_players(Window, Size, Px,_, 1) :-
+
+
+play_IA(Window) :-
+    game_over(0),
+    ia:is_play_IA(1),
+    ia:select_best_jugada(red),
+    logic:dimention_board(Px, Py),
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py), !.
+
+play_IA(_) :- !.
+
+
+play_IA2(Window, Color) :-
+    game_over(0),
+    logic:turn(C),
+    C==Color,
+    ia:select_best_jugada(Color),
+    logic:dimention_board(Px, Py),
+    clean_board(Window),
+    draw_board(Window, 40, Px, Py), !.
+play_IA2(_, _) :- !.
+
+
+draw_turn(red, Window) :-
+    logic:dimention_board(Px, _),
+    draw_image(Window, _, turno2, Px-400, 30), !.
+
+
+draw_turn(black, Window) :-
+    logic:dimention_board(Px, Py),
+    draw_image(Window, _, turno1, Px-400, Py-60), !.
+
+draw_turn(_, _) :- !.
+
+draw_are_players(Window, Size, Px, _, 1) :-
     
     %player 1
     draw_line(Window, [0, 80], [Px, 80], black),
@@ -227,13 +295,13 @@ draw_are_players(Window, Size, Px,_, 1) :-
     Ix is X-22,
     Iy is Y-22,
     draw_image(Window, _, T, Ix, Iy),
-    logic:cant_fichasxtype(T,Number,red),
-    draw_number_fichas(Number,[X+43,Y+10],Window),
+    logic:cant_fichasxtype(T, Number, red),
+    draw_number_fichas(Number, [X+43, Y+10], Window),
     logic:selected_type(T),
     logic:turn(red),
     T\=nan,
     logic:pos_picture_player(T, P),
-    new_hexag(Window, [P,40], Size, blue).    
+    new_hexag(Window, [P, 40], Size, blue).    
     
 
 draw_are_players(Window, Size, Px, Py, 2) :-
@@ -249,8 +317,8 @@ draw_are_players(Window, Size, Px, Py, 2) :-
     Ix is X-22,
     Iy is Y-22,
     draw_image(Window, _, T, Ix, Iy),
-    logic:cant_fichasxtype(T,Number,black),
-    draw_number_fichas(Number,[X+43,Y+10],Window),
+    logic:cant_fichasxtype(T, Number, black),
+    draw_number_fichas(Number, [X+43, Y+10], Window),
     logic:selected_type(T),
     logic:turn(black),
     T\=nan,
@@ -258,27 +326,44 @@ draw_are_players(Window, Size, Px, Py, 2) :-
     new_hexag(Window, [P, Py-40], Size, blue).   
 
 
-draw_number_fichas(1,[X,Y],Window):-
-    draw_image(Window,_,one,X,Y).
+draw_number_fichas(1, [X, Y], Window) :-
+    draw_image(Window, _, one, X, Y).
 
 
-draw_number_fichas(2,[X,Y],Window):-
-    draw_image(Window,_,two,X,Y).
+draw_number_fichas(2, [X, Y], Window) :-
+    draw_image(Window, _, two, X, Y).
 
 
-draw_number_fichas(3,[X,Y],Window):-
-    draw_image(Window,_,thre,X,Y).
+draw_number_fichas(3, [X, Y], Window) :-
+    draw_image(Window, _, thre, X, Y).
 
 
-draw_number_fichas(0,[X,Y],Window):-
-    draw_image(Window,_,cero,X,Y).
+draw_number_fichas(0, [X, Y], Window) :-
+    draw_image(Window, _, cero, X, Y).
+
+complement_ia(1, 0) :- !.
+complement_ia(0, 1) :- !.
+
+change_IA() :-
+    game_over(0),
+    ia:is_play_IA(A),
+    complement_ia(A, NA),
+    ia:update(A, NA, is_play_IA), !.
+    
 
 draw_move_hive(Window, Px, Py) :-
     new(@buttonup, button("up", message(@prolog, move_pos, Window, 1))),
     new(@buttondown, button("dawn", message(@prolog, move_pos, Window, 2))),
     new(@buttonleft, button("left", message(@prolog, move_pos, Window, 3))),
     new(@buttonright, button("right", message(@prolog, move_pos, Window, 4))),
-   
+    new(@buttonIA, button("change IA", message(@prolog, change_IA))),
+    new(@buttonPlay1,
+        button("juega IA", message(@prolog, play_IA2, Window, black))),
+    new(@buttonPlay2,
+        button("juega IA", message(@prolog, play_IA2, Window, red))),
+    send(Window, display, @buttonPlay2, point(Px-500, 40)),
+    send(Window, display, @buttonPlay1, point(Px-500, Py-60)),
+    send(Window, display, @buttonIA, point(Px-100, 40)),
     send(Window, display, @buttonup, point(Px-100, Py-60)),
     send(Window, display, @buttondown, point(Px-100, Py-40)),
     send(Window, display, @buttonleft, point(Px-150, Py-50)),
@@ -293,7 +378,10 @@ move_pos(Window, Pos) :-
 
 clean_board(Window) :-
     send(Window, clear),
+    send(@buttonPlay1, free),
+    send(@buttonPlay2, free),
     send(@buttonup, free),
+    send(@buttonIA, free),
     send(@buttondown, free),
     send(@buttonleft, free),
     send(@buttonright, free).
@@ -319,35 +407,44 @@ move_pos_temp(4) :-
     logic:update_Generic1([X, Y], [X+5, Y], midel_pixel).
 
 move_or_push(Window, Position) :-
+    game_over(0),
     get(Position, x, ClickX),
     get(Position, y, ClickY),
     %hacer seleccionar el tipo de bicho que quiere jugar
     pixel_to_cord(ClickX, ClickY, 40, [Q1, R1]),
     move_or_push_temp(ClickX, ClickY, Window, Q1, R1).
     
+
+
+play_IA1(1, Window) :-
+    play_IA(Window), !.
+
+play_IA1(_, _) :- !.
+
 move_or_push_temp(X, Y, Window, _, _) :-
     logic:dimention_board(Px, Py),
-    Y>Py-80,!,
+    Y>Py-80, !,
     logic:turn(black),
     select_type(X),
     logic:to_move(ID),
-    logic:update_Generic1(ID,0,to_move),
+    logic:update_Generic1(ID, 0, to_move),
     logic:selected_type(T),
     logic:num_ficha(N),
-    logic:select_ficha(T,black,N),
+    logic:select_ficha(T, black, N),
     clean_board(Window),
-    draw_board(Window, 40, Px, Py). 
+    draw_board(Window, 40, Px, Py),
+    play_IA1(N, Window). 
 
-move_or_push_temp(X,Y,Window,_,_):-
-   
-    Y < 80,!,
+
+move_or_push_temp(X, Y, Window, _, _) :-
+    Y<80, !,
     logic:turn(red),
     select_type(X),
     logic:to_move(ID),
-    logic:update_Generic1(ID,0,to_move),
+    logic:update_Generic1(ID, 0, to_move),
     logic:selected_type(T),
     logic:num_ficha(N),
-    logic:select_ficha(T,red,N),
+    logic:select_ficha(T, red, N),
     logic:dimention_board(Px, Py),
     clean_board(Window),
     draw_board(Window, 40, Px, Py). 
@@ -361,12 +458,13 @@ move_or_push_temp(_, Y, Window, Q, R) :-
     T\=nan,
     %cambiar por poner ficha
     logic:turn(C),
-    logic:push_ficha(T,C,Q,R),
+    logic:push_ficha(T, C, Q, R),
     
     %logic:add_ficha(9, Q, R, T, black),
     logic:update_Generic1(T, nan, selected_type),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py),!.
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py),
+    play_IA(Window).
 
 move_or_push_temp(_, _, Window, Q, R) :-
     %desmarcar la ficha que se hiba a colocar
@@ -374,13 +472,47 @@ move_or_push_temp(_, _, Window, Q, R) :-
     logic:update_Generic1(T, nan, selected_type),
     logic:dimention_board(Px, Py),
     logic:to_move(IDMov),
-    tablero(IDMov,_,_,TypeMove,Color),
+    tablero(IDMov, _, _, TypeMove, Color),
     TypeMove==beetle,
     
     %poner llamar a calcular las posiciones validas del movimiento
-    logic:mov_ficha(TypeMove,Color,Q,R),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py),!.
+    logic:mov_ficha(TypeMove, Color, Q, R),
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py),
+    play_IA(Window).
+
+%aaaaaa
+move_or_push_temp(_, _, Window, Q, R) :-
+    %desmarcar la ficha que se hiba a colocar
+    logic:selected_type(T),
+    logic:update_Generic1(T, nan, selected_type),
+    logic:dimention_board(Px, Py),
+    logic:to_move(IDMov),
+    tablero(IDMov, _, _, TypeMove, Color),
+    TypeMove==pillbug,
+    %poner llamar a calcular las posiciones validas del movimiento
+    logic:mov_ficha(TypeMove, Color, Q, R),
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py),
+    logic:play_pillbug(P),
+    play_IA_after_pillbug(P, Window).
+
+
+move_or_push_temp(_, _, Window, Q, R) :-
+    %desmarcar la ficha que se hiba a colocar
+    logic:selected_type(T),
+    logic:update_Generic1(T, nan, selected_type),
+    logic:dimention_board(Px, Py),
+    logic:to_move(IDMov),
+    tablero(IDMov, _, _, TypeMove, Color),
+    TypeMove==mosquito,
+    %poner llamar a calcular las posiciones validas del movimiento
+    logic:mov_ficha(TypeMove, Color, Q, R),
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py),
+    logic:play_pillbug(P),
+    play_IA_after_pillbug(P, Window).
+
 
 
 
@@ -389,10 +521,11 @@ move_or_push_temp(_, _, Window, Q, R) :-
     logic:tablero(ID, Q, R, Type, C),
     logic:turn(C),
     logic:update_Generic1(IDMov, ID, to_move),
-    logic:mov_valid_ficha(Type,C,Q,R),
+    logic:mov_valid_ficha(Type, C, Q, R),
+    update_to_move_empty(),
     logic:dimention_board(Px, Py),
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py),!.
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py).
 
 
 
@@ -405,13 +538,29 @@ move_or_push_temp(_, _, Window, Q, R) :-
     %llamar a mover ficha
     %logic:delete_ficha(IDMov),
     %logic:add_ficha(IDMov, Q, R, Type, Color),
-    logic:mov_ficha(Type,Color,Q,R),
- 
+    logic:mov_ficha(Type, Color, Q, R),
+    clean_board(Window), !,
+    draw_board(Window, 40, Px, Py),
+    play_IA(Window).
+
+
+play_IA_after_pillbug(1, _) :- !.
+
+
+play_IA_after_pillbug(0,Window):-
+    play_IA(Window).
+
+
+update_to_move_empty():-
+    logic:valid_positions(V),
+    length(V, L),
+    L==0,
+    to_move(ID),
+    logic:update_Generic1(ID,0,to_move).
+update_to_move_empty().
     
-    clean_board(Window),
-    draw_board(Window, 40, Px, Py),!.
 
-
+    
 
 
 select_type(X) :-
@@ -482,7 +631,6 @@ start_game :-
                        single,
                        message(@prolog, move_or_push, Window, @event?position))),
     Size is 40,
-    
     draw_board(Window, Size, Px, Py),
     send(Window, open).
 

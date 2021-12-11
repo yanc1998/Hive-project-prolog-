@@ -25,7 +25,13 @@
             push_bee_black/1,
             push_bee_red/1,
             cant_push/2,
-            player_win/1
+            player_win/1,
+            ocupate_pillbug/1,
+            empty_pillbug/1,
+            last_hability_pillbug/1,
+            bicho_o_escarabajo/1,
+            play_pillbug/1,
+            game_over/1
           ]).
 
 
@@ -50,13 +56,39 @@
 :- (dynamic push_bee_red/1).
 :- (dynamic cant_push/2).
 :- (dynamic player_win/1).
+:- (dynamic ocupate_pillbug/1).
+:- (dynamic empty_pillbug/1).
+:- (dynamic last_mov/1).
+:- (dynamic last_hability_pillbug/1).
+:- (dynamic play_pillbug/1).
+:- (dynamic values_mosquito/1).
+:- (dynamic bicho_o_escarabajo/1).
+:- (dynamic game_over/1).
 
+%tablero(1,0,0,soldier_ant,black).
+%tablero(3,0,-1,spider,black).
+%tablero(2,0,1,soldier_ant,red).
+%tablero(4,0,2,grasshopper,red).
+%tablero(6,-1,3,soldier_ant,red).
+%tablero(5,-1,0,queen_bee,black).
+%tablero(7,-2,0,soldier_ant,black).
+%tablero(8,-1,-1,soldier_ant,red).
+%tablero(9,-2,1,beetle,black).
+%tablero(10,1,-1,soldier_ant,black).
+game_over(0).
+
+%numero de fichas en el tablero,sirve de identificador para las fichas
+num_ficha(1).
+
+last_mov(0).
+last_hability_pillbug(0).
+play_pillbug(0).
 
 turn(black).
 push_bee_black(0).
 push_bee_red(0).
-cant_push(black,0).
-cant_push(red,0).
+cant_push(black, 0).
+cant_push(red, 0).
 
 %tablero(1, 0, 0, spider, red).
 
@@ -107,8 +139,7 @@ add_ficha(ID, Q, R, Type, Color) :-
 %posicion del centro del tablero
 midel_pixel([683, 350]).
 cord_midel([0, 0]).
-%numero de fichas en el tablero,sirve de identificador para las fichas
-num_ficha(1).
+
 
 %paso las cordenadas q y r y me retorna la coredenada s
 axial_to_cube(Q, R, S) :-
@@ -209,31 +240,31 @@ isContain(X, [_|R]) :-
 
 
 %///////////////////////////////////Push///////////////////////////////////////////////////
-cant_fichasxtype(grasshopper, 3, black).%saltamontes
-cant_fichasxtype(soldier_ant, 3, black).%hormigas
-cant_fichasxtype(beetle, 2, black).%escarabajos
-cant_fichasxtype(spider, 2, black).%arañas
-cant_fichasxtype(queen_bee, 1, black).%abeja reina
-cant_fichasxtype(mosquito, 1, black).%mosquito
-cant_fichasxtype(ladybug, 1, black).%mariquita
 cant_fichasxtype(pillbug, 1, black).%bicho bola
-cant_fichasxtype(grasshopper, 3, red).%saltamontes
-cant_fichasxtype(soldier_ant, 3, red).%hormigas
+cant_fichasxtype(mosquito, 1, black).%mosquito
+cant_fichasxtype(beetle, 2, black).%escarabajos
+cant_fichasxtype(grasshopper, 3, black).%saltamontes
+cant_fichasxtype(ladybug, 1, black).%mariquita
+cant_fichasxtype(soldier_ant, 3, black).%hormigas
+cant_fichasxtype(queen_bee, 1, black).%abeja reina
+cant_fichasxtype(spider, 2, black).%arañas
+cant_fichasxtype(mosquito, 1, red).%mosquito
+cant_fichasxtype(pillbug, 1, red).%bicho bola
 cant_fichasxtype(beetle, 2, red).%escarabajos
 cant_fichasxtype(spider, 2, red).%arañas
+cant_fichasxtype(grasshopper, 3, red).%saltamontes
+cant_fichasxtype(soldier_ant, 3, red).%hormigas
 cant_fichasxtype(queen_bee, 1, red).%abeja reina
-cant_fichasxtype(mosquito, 1, red).%mosquito
 cant_fichasxtype(ladybug, 1, red).%mariquita
-cant_fichasxtype(pillbug, 1, red).%bicho bola
 valid_positions([]).
 
 
-push_bee(queen_bee,black) :-
+push_bee(queen_bee, black) :- !,
     push_bee_black(E),
     update_Generic1(E, 1, push_bee_black).
 
 
-push_bee(queen_bee,red) :-
+push_bee(queen_bee, red) :- !,
     push_bee_red(E),
     update_Generic1(E, 1, push_bee_red).  
 
@@ -241,7 +272,6 @@ push_bee(_,_):-!.
     
 
 push_ficha(Type, Color, Q, R) :-
-    print("entre al push"),
     valid_positions(VP),
     isContain((Q, R), VP),
     num_ficha(ID),
@@ -257,6 +287,8 @@ push_ficha(Type, Color, Q, R) :-
     update_Generic1(C, NC, turn),
     update_Generic1(ID, NewID, num_ficha),
     update_Generic1(VP, [], valid_positions),
+    last_hability_pillbug(L),
+    update_Generic1(L,0,last_hability_pillbug),!,
     finish().
 
 decrement_ficha(Type, Color) :-
@@ -269,7 +301,6 @@ decrement_ficha(Type, Color) :-
 %///////////////////////////////////////Select_Push///////////////////////////////////////////////////////
 
 select_ficha(Type, Color, 1) :-
-    Type\=queen_bee,
     num_ficha(ID),
     assertz(tablero(ID, 0, 0, Type, Color)),
     push_bee(Type,Color),
@@ -446,23 +477,55 @@ get_Ady_pos(Q,R):-
 
 %/////////////////////////////////Select_Mov//////////////////////////////////////////////////////////
 %Repetir codigo asquerosamente 3 veces quitando linea  6 y quitando linea 9 and 11
+mov_ficha(mosquito,Color,Q,R):-
+    to_move(ID),
+    beetle_down(ID,_,_,_),!,
+    mov_ficha(beetle,Color,Q,R).
+
+mov_ficha(mosquito,Color,Q,R):-
+    tablero(_,Q,R,_,_),!,
+    bicho_o_escarabajo(X),
+    mov_bicho_o_escarabajo(X,mosquito,Color,Q,R).
+
+
 mov_ficha(beetle,Color,Q,R):-
     !,
     valid_positions(VP),
     isContain((Q,R), VP),
 
     to_move(IDmove),
-    tablero(IDmove,Aq,Ar,_,_),
+    tablero(IDmove,Aq,Ar,Type,_),
     
-    mov_ficha_beetle_temp(IDmove,Q,R,Aq,Ar,beetle,Color),
+    mov_ficha_beetle_temp(IDmove,Q,R,Aq,Ar,Type,Color),
+    last_mov(L),
+    update_Generic1(L,IDmove,last_mov),
 
-    print("si hizo"),
     turn(C),
     color_inverse(C,NC),
     update_Generic1(C,NC,turn),
     update_Generic1(VP,[],valid_positions),
     update_Generic1(IDmove, 0 , to_move),
+    act_hability_pillbug(),
+    play_pillbug(P),
+    update_Generic1(P,0,play_pillbug),
     finish().
+
+
+mov_ficha(pillbug,_,Q,R):-
+    tablero(ID,Q,R,_,_),!,
+    valid_positions(V),
+    isContain((Q,R),V),
+    to_move(T),
+    update_Generic1(T,ID,to_move),
+    last_hability_pillbug(X),
+    update_Generic1(X,ID,last_hability_pillbug),
+    empty_pillbug(E),
+    length(E,Le),
+    Le \= 0,
+    update_Generic1(V,E,valid_positions),
+    play_pillbug(P),
+    update_Generic1(P,1,play_pillbug).
+
 
 
 mov_ficha(Type, Color, Q, R):-
@@ -471,18 +534,39 @@ mov_ficha(Type, Color, Q, R):-
     to_move(ID),
     retract(tablero(ID,_,_,_,_)),
     assertz(tablero(ID, Q, R, Type, Color)),
+    last_mov(L),
+    update_Generic1(L,ID,last_mov),
     turn(C),
     color_inverse(C,NC),
     update_Generic1(C,NC,turn),
     update_Generic1(ID, 0 , to_move),
     update_Generic1(VP,[],valid_positions),
+    act_hability_pillbug(),
+    play_pillbug(P),
+    update_Generic1(P,0,play_pillbug),
     finish().
+
+
+mov_bicho_o_escarabajo(1,mosquito,Color,Q,R):-
+    mov_ficha(beetle,Color,Q,R),!.
+
+mov_bicho_o_escarabajo(2,mosquito,Color,Q,R):-
+    mov_ficha(pillbug,Color,Q,R),!.
+
+
+
+act_hability_pillbug():-
+    play_pillbug(P),
+    P \= 1,
+    last_hability_pillbug(L),
+    update_Generic1(L,0,last_hability_pillbug),!.
+
+act_hability_pillbug():-!.
 
 
 
 mov_ficha_beetle_temp(IDmove,Q,R,Aq,Ar,Type,Color):-
     beetle_down(IDmove,ID,Type1,Color1),
-    print("debajo"),
     retract(tablero(IDmove,_,_,_,_)),
     assertz(tablero(ID,Aq,Ar,Type1,Color1)),
 
@@ -496,12 +580,9 @@ mov_ficha_beetle_temp(IDmove,Q,R,Aq,Ar,Type,Color):-
 
 
 mov_ficha_beetle_temp(IDmove,Q,R,_,_,Type,Color):-
-    print("entro"),
     not(beetle_down(IDmove,_,_,_)),
     retract(tablero(IDmove,_,_,_,_)),
-    print("nadie abajo"),
     tablero(IDdown,Q,R,Typedown,Colordown),
-    print("alguien abajo"),
     retract(tablero(IDdown,_,_,_,_)),
     assertz(tablero(IDmove, Q, R, Type, Color)),
 
@@ -557,6 +638,8 @@ mov_valid_ficha(queen_bee,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, mov_queen(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
@@ -566,6 +649,7 @@ mov_valid_ficha(beetle,C,Q,R):-
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
     tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     beetle_down(ID,_,_,_),
     findall(_, mov_beetle(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
@@ -574,6 +658,8 @@ mov_valid_ficha(beetle,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, mov_beetle(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
@@ -582,6 +668,8 @@ mov_valid_ficha(grasshopper,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, mov_grasshopper(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
@@ -591,6 +679,8 @@ mov_valid_ficha(ladybug,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, mov_ladybug(Q,R), _),
     findall(_,remove_only_pos(Q,R),_),!.
@@ -599,6 +689,8 @@ mov_valid_ficha(soldier_ant,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, mov_soldier_ant(Q,R), _),!.
     %findall(_,remove_only_pos(Q,R),_),!.
@@ -607,9 +699,103 @@ mov_valid_ficha(spider,C,Q,R):-
     valid_positions(P),
     update_Generic1(P,[],valid_positions),
     color_bee_push(C),
+    tablero(ID,Q,R,_,_),
+    not(last_hability_pillbug(ID)),
     disconect_hive(Q,R),
     findall(_, move_spider(Q,R), _),!.
-    %findall(_,remove_only_pos(Q,R),_),!.    
+    %findall(_,remove_only_pos(Q,R),_),!.
+
+
+
+mov_valid_ficha(pillbug,C,Q,R):-
+    valid_positions(P),
+    update_Generic1(P,[],valid_positions),
+    empty_pillbug(E),
+    update_Generic1(E,[],empty_pillbug),
+    ocupate_pillbug(O),
+    update_Generic1(O,[],ocupate_pillbug),
+    color_bee_push(C),
+    findall(_,aux_empty_pillbug(Q,R),_),
+    disconect_hive(Q,R),
+    findall(_, mov_queen(Q,R),_),
+    findall(_,remove_only_pos(Q,R),_),
+    findall(_,hability_pillbug(Q,R),_),
+    valid_positions(P1),
+    ocupate_pillbug(O1),
+    concat(P1,O1,P2),
+    update_Generic1(P1,P2,valid_positions).
+
+mov_valid_ficha(pillbug,C,Q,R):-
+    valid_positions(P),
+    update_Generic1(P,[],valid_positions),
+    empty_pillbug(E),
+    update_Generic1(E,[],empty_pillbug),
+    ocupate_pillbug(O),
+    update_Generic1(O,[],ocupate_pillbug),
+    color_bee_push(C),
+    findall(_,aux_empty_pillbug(Q,R),_),
+    not(disconect_hive(Q,R)),
+    findall(_,hability_pillbug(Q,R),_),
+    valid_positions(P1),
+    ocupate_pillbug(O1),
+    concat(P1,O1,P2),
+    update_Generic1(P1,P2,valid_positions).
+
+mov_valid_ficha(mosquito,C,Q,R):-
+    tablero(ID,Q,R,_,_),
+    not(beetle_down(ID,_,_,_)),!,
+    findall(_,mov_mosquito(C,Q,R),_),
+    values_mosquito(VM),
+    valid_positions(Vp),
+    update_Generic1(Vp,VM,valid_positions).
+
+mov_valid_ficha(mosquito,C,Q,R):-
+    mov_valid_ficha(beetle,C,Q,R).
+
+
+bicho_o_escarabajo(0).
+values_mosquito([]).
+
+mov_mosquito(C,Q,R):-
+    bicho_o_escarabajo(X),
+    update_Generic1(X,0,bicho_o_escarabajo),
+    values_mosquito(V),
+    update_Generic1(V,[],values_mosquito),
+    findall(_,get_Ady_pos(Q,R),_),
+    adya(Ady),
+   
+    member(A,Ady),
+    (Nq,Nr) = A,
+    tablero(_,Nq,Nr,Type,_),
+    Type\=mosquito,
+    bicho_escarabajo(Type),
+    mov_valid_ficha(Type,C,Q,R),
+    valid_positions(Valid),
+    values_mosquito(M),
+    concat(M,Valid,NV),
+    update_Generic1(M,NV,values_mosquito).
+
+bicho_escarabajo(pillbug):-
+    bicho_o_escarabajo(X),
+    X \=1,
+    update_Generic1(X,2,bicho_o_escarabajo).
+
+bicho_escarabajo(pillbug):-
+    bicho_o_escarabajo(X),
+    X ==1,
+    update_Generic1(X,2,bicho_o_escarabajo).
+
+bicho_escarabajo(beetle):-
+    bicho_o_escarabajo(X),
+    X\=2,
+    update_Generic1(X,1,bicho_o_escarabajo).
+
+bicho_escarabajo(beetle):-
+    bicho_o_escarabajo(X),
+    X==2,
+    update_Generic1(X,2,bicho_o_escarabajo).
+
+bicho_escarabajo(_):-!.
 
 
 move_spider(Q,R):-
@@ -717,8 +903,8 @@ mov_line(Q,R,_,_):-
     concat(P,[(Q,R)],Np),
     update_Generic1(P,Np,valid_positions).
     
-
-
+empty_pillbug([]).
+ocupate_pillbug([]).
 
 mov_queen(Q,R):-
     numlist(1,6,Ady),
@@ -732,6 +918,32 @@ mov_queen(Q,R):-
     concat(ValidList,[(Nq,Nr)],V),
     update_Generic1(ValidList,V,valid_positions).
 
+aux_empty_pillbug(Q,R):-
+    numlist(1,6,Ady),
+    member(Pos,Ady),
+    get_posicion_ady(Pos,Dq,Dr),
+    Nq is Q +Dq,
+    Nr is R + Dr,
+    not(tablero(_,Nq,Nr,_,_)),
+    empty_pillbug(ValidList),
+    concat(ValidList,[(Nq,Nr)],V),
+    update_Generic1(ValidList,V,empty_pillbug).
+
+hability_pillbug(Q,R):-
+    numlist(1,6,Ady),
+    member(Pos,Ady),
+    get_posicion_ady(Pos,Dq,Dr),
+    Nq is Q +Dq,
+    Nr is R + Dr,
+    tablero(ID,Nq,Nr,_,_),
+    last_mov(Lid),
+    Lid \= ID,
+    disconect_hive(Nq,Nr),
+    not(beetle_down(ID,_,_,_)),
+    ocupate_pillbug(ValidList),
+    concat(ValidList,[(Nq,Nr)],V),
+    update_Generic1(ValidList,V,ocupate_pillbug).
+
 
 mov_beetle(Q,R):-
     tablero(IDmove,Q,R,_,_),
@@ -743,9 +955,20 @@ mov_beetle(Q,R):-
     mov_beetle_temp(Pos,Nq,Nr,Q,R,IDmove).
     
 
+
+
 mov_beetle_temp(Pos,Nq,Nr,Q,R,IDmove):-
     not(beetle_down(IDmove,_,_,_)),
+    not(tablero(_,Nq,Nr,_,_)),%lina nueva
     not(in_between(Pos,Q,R)),
+    valid_positions(ValidList),
+    concat(ValidList,[(Nq,Nr)],V),
+    update_Generic1(ValidList,V,valid_positions).
+
+%nuevo
+mov_beetle_temp(_,Nq,Nr,_,_,IDmove):-
+    not(beetle_down(IDmove,_,_,_)),
+    tablero(_,Nq,Nr,_,_),
     valid_positions(ValidList),
     concat(ValidList,[(Nq,Nr)],V),
     update_Generic1(ValidList,V,valid_positions).
@@ -800,13 +1023,14 @@ neighbour(Pos,X,Y):-
 
 
 player_win(-1).
+
 finish():-
     win(black),
     player_win(X),
     update_Generic1(X, 1, player_win),
     win(red),
-    player_win(X),
-    update_Generic1(X, 0, player_win),!.
+    player_win(Y),
+    update_Generic1(Y, 0, player_win),!.
 
 finish():-
     win(red),
@@ -817,8 +1041,9 @@ finish():-!.
 
 
 win(Color):-
-    tablero(_,Q,R,queen_bee,Color),
-    get_Ady_pos(Q,R),
+    color_inverse(Color,IColor),
+    tablero(_,Q,R,queen_bee,IColor),
+    findall(_,get_Ady_pos(Q,R),_),
     adya(Ady),
     length(Ady,L),
     L == 6.
